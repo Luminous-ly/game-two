@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>芸豆默数 · AI 智慧课堂</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width:100%; height:100%; overflow:hidden;
+    font-family:"Yuanti SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,sans-serif;
+    background:#FFF6EA;
+    user-select:none; -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  #stage { position:fixed; inset:0; display:block; z-index:1; }
+  .hud   { position:fixed; inset:0; z-index:10; pointer-events:none; }
+
+  /* ============ 左上角品牌标签 ============ */
+  .brand {
+    position:absolute; top:2.8vh; left:2.6vw;
+    display:flex; align-items:center; gap:.65vw;
+    padding:.85vh 1.5vw;
+    background:rgba(255,255,255,.78);
+    border:2px solid rgba(255,255,255,.95);
+    border-radius:999px;
+    box-shadow:0 8px 24px rgba(196,150,110,.22);
+    color:#8A6350; font-weight:800;
+    font-size:clamp(14px,1.28vw,22px);
+    letter-spacing:.06em;
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  }
+  .brand-dot {
+    width:clamp(9px,.75vw,14px); height:clamp(9px,.75vw,14px);
+    border-radius:50%; background:#6FD8B0;
+    box-shadow:0 0 12px #6FD8B0;
+    animation:breath 1.6s ease-in-out infinite;
+  }
+  @keyframes breath {
+    0%,100% { transform:scale(1); opacity:1; }
+    50%     { transform:scale(.6); opacity:.45; }
+  }
+
+  /* ============ 右上角倒计时 ============ */
+  .timer {
+    position:absolute; top:2.4vh; right:2.6vw;
+    width:clamp(86px,8vw,128px); height:clamp(86px,8vw,128px);
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  .timer.hide { opacity:0; transform:scale(.65); }
+  .timer svg { width:100%; height:100%; transform:rotate(-90deg); display:block; }
+  .ring-bg { fill:none; stroke:rgba(200,160,120,.22); stroke-width:8; }
+  .ring-fg {
+    fill:none; stroke:#6FD8B0; stroke-width:8; stroke-linecap:round;
+    filter:drop-shadow(0 0 6px currentColor);
+  }
+  .timer-num {
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(28px,2.8vw,46px); font-weight:900;
+    color:#6FD8B0; text-shadow:0 2px 0 #fff;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ============ 底部状态提示 ============ */
+  .hint {
+    position:absolute; left:50%; bottom:4.5vh;
+    transform:translateX(-50%) translateY(14px);
+    opacity:0; pointer-events:none;
+    padding:1vh 2.6vw;
+    border-radius:999px;
+    background:rgba(255,255,255,.85);
+    border:2px solid #FFE3C2;
+    color:#A9764E; font-weight:800;
+    font-size:clamp(14px,1.35vw,22px);
+    letter-spacing:.2em; text-indent:.2em; white-space:nowrap;
+    box-shadow:0 10px 28px rgba(200,155,110,.24);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    transition:opacity .4s ease, transform .4s ease;
+  }
+  .hint.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ============ 输入面板 ============ */
+  .input-panel {
+    position:absolute; left:50%; bottom:3.2vh;
+    transform:translateX(-50%) translateY(26px) scale(.94);
+    opacity:0; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center;
+    gap:1.3vh;
+    padding:1.8vh 2.6vw 2vh;
+    background:rgba(255,255,255,.9);
+    border:3px solid #FFFFFF;
+    border-radius:3.2vh;
+    box-shadow:0 18px 50px rgba(200,150,110,.3),
+               0 0 0 7px rgba(255,255,255,.35);
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    transition:opacity .42s cubic-bezier(.2,1.4,.4,1),
+               transform .42s cubic-bezier(.2,1.4,.4,1);
+  }
+  .input-panel.show {
+    opacity:1; transform:translateX(-50%) translateY(0) scale(1);
+    pointer-events:auto;
+  }
+  .input-label {
+    font-size:clamp(15px,1.5vw,25px);
+    font-weight:800; color:#B27C4E; letter-spacing:.05em;
+  }
+  .input-main {
+    display:flex; align-items:center; gap:1.2vw;
+  }
+  #answerInput {
+    width:clamp(84px,7vw,120px);
+    height:clamp(66px,6vw,100px);
+    text-align:center;
+    font-size:clamp(38px,4vw,64px);
+    font-weight:900;
+    color:#6FD8B0;
+    background:#FFFDF8;
+    border:3px solid #FFDCB4;
+    border-radius:2vh;
+    outline:none;
+    font-family:inherit;
+    transition:border-color .25s, box-shadow .25s;
+  }
+  #answerInput:focus {
+    border-color:#6FD8B0;
+    box-shadow:0 0 0 6px rgba(111,216,176,.2);
+  }
+  #answerInput::placeholder { color:#E2C9AA; }
+
+  .btn-submit {
+    height:clamp(66px,6vw,100px);
+    padding:0 2.6vw;
+    font-size:clamp(20px,1.9vw,32px);
+    font-weight:900; font-family:inherit;
+    color:#fff; letter-spacing:.14em; text-indent:.14em;
+    background:linear-gradient(160deg,#7FE3BC,#4FC79A);
+    border:none; border-radius:2vh;
+    box-shadow:0 8px 0 #3FAF85, 0 14px 26px rgba(80,200,160,.4);
+    cursor:pointer;
+    transition:transform .12s, box-shadow .12s, filter .2s;
+  }
+  .btn-submit:active {
+    transform:translateY(5px);
+    box-shadow:0 3px 0 #3FAF85, 0 8px 16px rgba(80,200,160,.35);
+  }
+  .btn-submit:disabled {
+    filter:grayscale(.7) opacity(.5);
+    cursor:not-allowed;
+    transform:none;
+    box-shadow:0 8px 0 #C8C8C8;
+  }
+
+  .keypad {
+    display:flex; gap:.55vw; flex-wrap:nowrap;
+  }
+  .key {
+    width:clamp(40px,3.6vw,62px);
+    height:clamp(40px,3.6vw,62px);
+    font-size:clamp(18px,1.7vw,28px);
+    font-weight:900; font-family:inherit;
+    color:#A9764E;
+    background:linear-gradient(180deg,#FFFDF8,#FFF0DF);
+    border:2.5px solid #FFE0BE;
+    border-radius:1.6vh;
+    box-shadow:0 5px 0 #F0D5B4;
+    cursor:pointer;
+    transition:transform .1s, box-shadow .1s, background .2s;
+  }
+  .key:hover { background:linear-gradient(180deg,#FFF8EC,#FFE7CE); }
+  .key:active {
+    transform:translateY(4px);
+    box-shadow:0 1px 0 #F0D5B4;
+  }
+
+  /* ============ 中央面板（标准答案 / 总数） ============ */
+  .center-panel {
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%) scale(.45);
+    opacity:0; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center;
+    padding:3.2vh 6vw 3.4vh;
+    border-radius:4vh;
+    background:radial-gradient(circle at 50% 32%,
+                rgba(255,255,255,.97), rgba(255,244,228,.97));
+    border:5px solid #FFFFFF;
+    box-shadow:0 30px 80px rgba(190,140,95,.35),
+               0 0 0 10px rgba(255,255,255,.4),
+               inset 0 0 60px rgba(255,222,180,.5);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    transition:opacity .5s cubic-bezier(.2,1.5,.4,1),
+               transform .5s cubic-bezier(.2,1.6,.4,1);
+    text-align:center;
+  }
+  .center-panel.show {
+    opacity:1; transform:translate(-50%,-50%) scale(1);
+  }
+  .center-label {
+    font-size:clamp(16px,1.6vw,28px);
+    font-weight:800; letter-spacing:.42em; text-indent:.42em;
+    color:#C89A6E; margin-bottom:1vh;
+  }
+  .center-num {
+    font-size:clamp(80px,12vw,190px);
+    font-weight:900; line-height:1;
+    color:#FF9A6B;
+    text-shadow:0 6px 0 #FFE1C4,
+                0 16px 36px rgba(255,150,100,.4);
+    font-variant-numeric:tabular-nums;
+    animation:numPop .65s cubic-bezier(.2,1.7,.4,1) both;
+  }
+  @keyframes numPop {
+    0%   { transform:scale(.35); opacity:0; }
+    100% { transform:scale(1);  opacity:1; }
+  }
+  .center-sub {
+    margin-top:.8vh;
+    font-size:clamp(15px,1.45vw,24px);
+    font-weight:800; letter-spacing:.28em; text-indent:.28em;
+    color:#C89A6E;
+  }
+
+  /* ============ 温柔提示 ============ */
+  .gentle-tip {
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%) scale(.65);
+    opacity:0; pointer-events:none;
+    display:flex; align-items:center; gap:.5em;
+    padding:3vh 4.5vw;
+    background:rgba(255,252,244,.97);
+    border:5px solid #FFDFB0;
+    border-radius:4vh;
+    box-shadow:0 26px 64px rgba(200,150,100,.32);
+    font-size:clamp(24px,3vw,52px);
+    font-weight:900;
+    color:#C08A4E;
+    white-space:nowrap;
+    transition:opacity .42s cubic-bezier(.2,1.5,.4,1),
+               transform .42s cubic-bezier(.2,1.5,.4,1);
+  }
+  .gentle-tip.show {
+    opacity:1; transform:translate(-50%,-50%) scale(1);
+  }
+
+  /* ============ 星星奖励层 ============ */
+  .reward-layer {
+    position:absolute; inset:0; overflow:hidden; pointer-events:none;
+  }
+  .star-particle {
+    position:absolute;
+    font-size:clamp(22px,2.2vw,40px);
+    transform:translate(-50%,-50%);
+    animation:starFly 1.7s cubic-bezier(.15,.9,.3,1) forwards;
+    pointer-events:none;
+    will-change:transform,opacity;
+  }
+  @keyframes starFly {
+    0% {
+      opacity:1;
+      transform:translate(-50%,-50%) scale(.25) rotate(0deg);
+    }
+    100% {
+      opacity:0;
+      transform:translate(calc(-50% + var(--tx)), calc(-50% + var(--ty)))
+                scale(1.45) rotate(var(--rot));
+    }
+  }
+  .big-cheer {
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    font-size:clamp(52px,8.5vw,140px);
+    font-weight:900;
+    color:#FF8A5B;
+    text-shadow:0 7px 0 #FFDDAE, 0 18px 40px rgba(255,140,90,.45);
+    white-space:nowrap;
+    pointer-events:none;
+    animation:cheerPop 1.9s cubic-bezier(.2,1.5,.4,1) forwards;
+  }
+  @keyframes cheerPop {
+    0%   { opacity:0; transform:translate(-50%,-50%) scale(.3) rotate(-9deg); }
+    28%  { opacity:1; transform:translate(-50%,-50%) scale(1.12) rotate(4deg); }
+    48%  { transform:translate(-50%,-50%) scale(.98) rotate(-2deg); }
+    78%  { opacity:1; transform:translate(-50%,-50%) scale(1.02) rotate(0deg); }
+    100% { opacity:0; transform:translate(-50%,-50%) scale(1.22); }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+
+<div class="hud">
+  <div class="brand"><span class="brand-dot"></span>AI 智慧课堂 · 芸豆默数</div>
+
+  <div class="timer" id="timer">
+    <svg viewBox="0 0 120 120">
+      <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+      <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="52"></circle>
+    </svg>
+    <div class="timer-num" id="timerNum">10</div>
+  </div>
+
+  <div class="hint" id="hint">眼睛看 · 心里数 · 不出声 · 数准确</div>
+
+  <!-- 输入面板 -->
+  <div class="input-panel" id="inputPanel">
+    <div class="input-label">🤫 悄悄数一数，一共几颗豆？</div>
+    <div class="input-main">
+      <input type="text" id="answerInput" inputmode="numeric" maxlength="1" placeholder="?">
+      <button class="btn-submit" id="submitBtn" disabled>确 定</button>
+    </div>
+    <div class="keypad" id="keypad"></div>
+  </div>
+
+  <!-- 中央面板 -->
+  <div class="center-panel" id="centerPanel">
+    <div class="center-label" id="centerLabel">标准答案</div>
+    <div class="center-num" id="centerNum">0</div>
+    <div class="center-sub" id="centerSub">颗芸豆</div>
+  </div>
+
+  <!-- 温柔提示 -->
+  <div class="gentle-tip" id="gentleTip">
+    <span>🌙</span><span id="gentleText">再悄悄数一次吧～</span>
+  </div>
+
+  <!-- 星星奖励 -->
+  <div class="reward-layer" id="rewardLayer"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ==================== 可调参数 ==================== */
+  const COUNT_TIME  = 10;    // 默数倒计时（秒）
+  const HOLD_TIME   = 2.0;   // 星光在每颗芸豆上停留（秒）
+  const ANSWER_SHOW = 2.6;   // 标准答案展示时长（秒）
+  const MAX_TRIES   = 3;     // 最多允许输入次数
+
+  /* ==================== DOM ==================== */
+  const canvas     = document.getElementById('stage');
+  const ctx        = canvas.getContext('2d');
+  const ringFg     = document.getElementById('ringFg');
+  const timerNum   = document.getElementById('timerNum');
+  const timerEl    = document.getElementById('timer');
+  const hintEl     = document.getElementById('hint');
+  const inputPanel = document.getElementById('inputPanel');
+  const answerInput= document.getElementById('answerInput');
+  const submitBtn  = document.getElementById('submitBtn');
+  const keypad     = document.getElementById('keypad');
+  const centerPanel= document.getElementById('centerPanel');
+  const centerLabel= document.getElementById('centerLabel');
+  const centerNum  = document.getElementById('centerNum');
+  const centerSub  = document.getElementById('centerSub');
+  const gentleTip  = document.getElementById('gentleTip');
+  const gentleText = document.getElementById('gentleText');
+  const rewardLayer= document.getElementById('rewardLayer');
+
+  const RING_LEN = 2 * Math.PI * 52;
+  ringFg.style.strokeDasharray  = RING_LEN;
+  ringFg.style.strokeDashoffset = RING_LEN;
+
+  /* ==================== 全局状态 ==================== */
+  let W = 0, H = 0, DPR = 1;
+  let bounds = { x0:0, x1:0, y0:0, y1:0 };
+  let decor = { blobs: [], clouds: [] };
+
+  let beans = [];
+  let total = 0;
+
+  let state = 'enter';
+  // enter → count → input → (retry) → checking → answer → replay → done
+
+  let time      = 0;
+  let countDown = COUNT_TIME;
+  let attempts  = 0;
+  let answerT   = 0;
+
+  let replayIdx  = 0;
+  let haloArrived= false;
+  let haloHold   = 0;
+
+  const halo = {
+    x:0, y:0, r:34, alpha:0, visible:false
+  };
+
+  /* ==================== 工具函数 ==================== */
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  function easeOutBack(x) {
+    const c1 = 1.70158, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+  }
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  /* ==================== 尺寸自适应 ==================== */
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+
+    canvas.width  = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    bounds = {
+      x0: W * 0.085,
+      x1: W * 0.915,
+      y0: H * 0.185,
+      y1: H * 0.80
+    };
+
+    buildDecor();
+    clampBeans();
+  }
+
+  function clampBeans() {
+    for (const b of beans) {
+      const rr = b.r * 1.35;
+      b.x = clamp(b.x, bounds.x0 + rr, bounds.x1 - rr);
+      b.y = clamp(b.y, bounds.y0 + rr, bounds.y1 - rr);
+    }
+  }
+
+  /* ==================== 背景装饰 ==================== */
+  function buildDecor() {
+    decor.blobs = [];
+    decor.clouds = [];
+
+    const palette = [
+      'rgba(255,214,180,0.42)',
+      'rgba(255,236,200,0.48)',
+      'rgba(205,240,222,0.38)',
+      'rgba(255,208,216,0.34)',
+      'rgba(226,236,255,0.36)'
+    ];
+
+    for (let i = 0; i < 8; i++) {
+      decor.blobs.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.min(W, H) * rand(0.13, 0.28),
+        color: palette[i % palette.length],
+        phase: Math.random() * Math.PI * 2,
+        speed: rand(0.12, 0.28)
+      });
+    }
+
+    for (let i = 0; i < 5; i++) {
+      decor.clouds.push({
+        x0: Math.random() * (W + 400) - 200,
+        y: H * rand(0.05, 0.26),
+        s: rand(0.55, 1.05),
+        speed: rand(6, 16),
+        alpha: rand(0.55, 0.85)
+      });
+    }
+  }
+
+  /* ==================== 随机撒豆 ==================== */
+  function distribute(n, groups) {
+    const base = Math.floor(n / groups);
+    const rem  = n % groups;
+    const out  = [];
+    for (let i = 0; i < groups; i++) out.push(base + (i < rem ? 1 : 0));
+    return out;
+  }
+
+  function layoutBeans() {
+    beans = [];
+
+    const b = bounds;
+    const areaW = b.x1 - b.x0;
+    const areaH = b.y1 - b.y0;
+    if (areaW <= 40 || areaH <= 40) return;
+
+    const n = total;
+    const mode = Math.floor(Math.random() * 3);  // 0 散点 / 1 横排 / 2 竖排
+
+    let pts = [];
+    let r = 30;
+
+    /* ---------- 模式 0：随机散点（疏密随机） ---------- */
+    if (mode === 0) {
+      let baseR = Math.sqrt((areaW * areaH) / (n * 22));
+      baseR = clamp(baseR, 24, Math.min(areaW, areaH) * 0.125);
+
+      const density = rand(2.4, 3.4);          // 疏密随机
+      let minD = baseR * density;
+
+      const margin = baseR * 1.35;
+      const px0 = b.x0 + margin, px1 = b.x1 - margin;
+      const py0 = b.y0 + margin, py1 = b.y1 - margin;
+
+      let tries = 0;
+      while (pts.length < n && tries < 9000) {
+        tries++;
+        const x = rand(px0, px1);
+        const y = rand(py0, py1);
+        let ok = true;
+        for (let i = 0; i < pts.length; i++) {
+          const dx = pts[i].x - x, dy = pts[i].y - y;
+          if (dx * dx + dy * dy < minD * minD) { ok = false; break; }
+        }
+        if (ok) pts.push({ x, y });
+        else if (tries % 300 === 0) minD = Math.max(minD * 0.88, baseR * 2.0);
+      }
+      while (pts.length < n) {
+        pts.push({ x: rand(px0, px1), y: rand(py0, py1) });
+      }
+      r = baseR;
+    }
+
+    /* ---------- 模式 1 / 2：横排 / 竖排网格 ---------- */
+    else {
+      const horizontal = (mode === 1);
+
+      let cols;
+      if (horizontal) {
+        cols = Math.ceil(Math.sqrt(n * 1.8));
+      } else {
+        cols = Math.max(1, Math.round(Math.sqrt(n / 1.8)));
+      }
+      cols = clamp(cols, 1, n);
+
+      const rows = Math.ceil(n / cols);
+      const perRow = distribute(n, rows);
+
+      // 算半径：由最挤的一格决定
+      const maxInRow = Math.max.apply(null, perRow);
+      const cellW = areaW / maxInRow;
+      const cellH = areaH / rows;
+      r = clamp(Math.min(cellW, cellH) * 0.33, 20, Math.min(areaW, areaH) * 0.12);
+
+      for (let ri = 0; ri < rows; ri++) {
+        const cnt = perRow[ri];
+        const colW = areaW / cnt;
+        const rowH = areaH / rows;
+
+        for (let ci = 0; ci < cnt; ci++) {
+          const jx = (Math.random() - 0.5) * colW * 0.20;
+          const jy = (Math.random() - 0.5) * rowH * 0.20;
+
+          pts.push({
+            x: b.x0 + colW * (ci + 0.5) + jx,
+            y: b.y0 + rowH * (ri + 0.5) + jy
+          });
+        }
+      }
+    }
+
+    /* ---------- 生成芸豆对象 ---------- */
+    for (let i = 0; i < pts.length; i++) {
+      beans.push({
+        x: pts[i].x,
+        y: pts[i].y,
+        r: r,
+        rot: rand(-0.5, 0.5),
+        phase: rand(0, Math.PI * 2),
+        bob: r * rand(0.05, 0.10),
+        spawnDelay: i * 0.055 + rand(0, 0.06),
+        scale: 0,
+        px: pts[i].x,
+        py: pts[i].y,
+        pang: 0,
+        counted: false,
+        countedAt: 0,
+        number: 0
+      });
+    }
+  }
+
+  /* ==================== 开始新一轮 ==================== */
+  function newRound() {
+    // 随机 1~9，尽量避免与上轮重复
+    let n, guard = 0;
+    do {
+      n = 1 + Math.floor(Math.random() * 9);
+      guard++;
+    } while (n === total && guard < 15);
+    total = n;
+
+    // 状态复位
+    time       = 0;
+    countDown  = COUNT_TIME;
+    attempts   = 0;
+    answerT    = 0;
+    replayIdx  = 0;
+    haloArrived= false;
+    haloHold   = 0;
+
+    halo.visible = false;
+    halo.alpha   = 0;
+
+    // UI 复位
+    centerPanel.classList.remove('show');
+    inputPanel.classList.remove('show');
+    gentleTip.classList.remove('show');
+    timerEl.classList.remove('hide');
+    hintEl.textContent = '眼睛看 · 心里数 · 不出声 · 数准确';
+    hintEl.classList.add('show');
+
+    answerInput.value = '';
+    submitBtn.disabled = true;
+
+    // 清空星星
+    rewardLayer.innerHTML = '';
+
+    ringFg.style.strokeDashoffset = RING_LEN;
+    ringFg.style.stroke = '#6FD8B0';
+    timerNum.style.color = '#6FD8B0';
+    timerNum.textContent = COUNT_TIME;
+
+    layoutBeans();
+
+    state = 'enter';
+  }
+
+  /* ==================== 倒计时 UI ==================== */
+  function updateTimerUI() {
+    const frac = clamp(countDown / COUNT_TIME, 0, 1);
+    ringFg.style.strokeDashoffset = RING_LEN * (1 - frac);
+
+    let color = '#6FD8B0';
+    if (frac <= 0.3)      color = '#FF7A7A';
+    else if (frac <= 0.6) color = '#FFC24D';
+
+    ringFg.style.stroke  = color;
+    timerNum.style.color = color;
+    timerNum.textContent = Math.max(0, Math.ceil(countDown - 0.001));
+  }
+
+  /* ==================== 输入面板 ==================== */
+  function showInputPanel() {
+    inputPanel.classList.add('show');
+    hintEl.classList.remove('show');
+    answerInput.value = '';
+    submitBtn.disabled = true;
+
+    const isTouch = window.matchMedia('(hover: none)').matches;
+    if (!isTouch) {
+      setTimeout(function () { answerInput.focus(); }, 380);
+    }
+  }
+
+  function hideInputPanel() {
+    inputPanel.classList.remove('show');
+  }
+
+  /* ==================== 星星爆发 ==================== */
+  function burstStars() {
+    const cx = W / 2, cy = H / 2;
+    const icons = ['⭐', '✨', '🌟', '💫', '🎉'];
+
+    for (let i = 0; i < 38; i++) {
+      const el = document.createElement('div');
+      el.className = 'star-particle';
+      el.textContent = icons[i % icons.length];
+      el.style.left = cx + 'px';
+      el.style.top  = cy + 'px';
+
+      const ang  = Math.random() * Math.PI * 2;
+      const dist = rand(120, Math.min(W, H) * 0.52);
+      el.style.setProperty('--tx', (Math.cos(ang) * dist).toFixed(1) + 'px');
+      el.style.setProperty('--ty', (Math.sin(ang) * dist).toFixed(1) + 'px');
+      el.style.setProperty('--rot', rand(-400, 400).toFixed(0) + 'deg');
+      el.style.animationDelay = (Math.random() * 0.18).toFixed(2) + 's';
+
+      rewardLayer.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2400);
+    }
+
+    const cheer = document.createElement('div');
+    cheer.className = 'big-cheer';
+    cheer.textContent = '太棒了！';
+    rewardLayer.appendChild(cheer);
+    setTimeout(function () { cheer.remove(); }, 2100);
+  }
+
+  /* ==================== 温柔提示 ==================== */
+  function showGentleTip(txt) {
+    gentleText.textContent = txt;
+    gentleTip.classList.add('show');
+  }
+  function hideGentleTip() {
+    gentleTip.classList.remove('show');
+  }
+
+  /* ==================== 中央面板 ==================== */
+  function showCenter(label, num, sub) {
+    centerLabel.textContent = label;
+    centerNum.textContent = num;
+    centerSub.textContent = sub;
+
+    centerNum.style.animation = 'none';
+    void centerNum.offsetWidth;
+    centerNum.style.animation = '';
+
+    centerPanel.classList.add('show');
+    hintEl.classList.remove('show');
+  }
+  function hideCenter() {
+    centerPanel.classList.remove('show');
+  }
+
+  /* ==================== 提交答案 ==================== */
+  function submitAnswer() {
+    if (state !== 'input') return;
+
+    const v = parseInt(answerInput.value, 10);
+    if (!v || v < 1 || v > 9) {
+      answerInput.animate([
+        { transform: 'translateX(0)' },
+        { transform: 'translateX(-9px)' },
+        { transform: 'translateX(9px)' },
+        { transform: 'translateX(-6px)' },
+        { transform: 'translateX(6px)' },
+        { transform: 'translateX(0)' }
+      ], { duration: 400, easing: 'ease-in-out' });
+      return;
+    }
+
+    attempts++;
+
+    /* ---------- 正确 ---------- */
+    if (v === total) {
+      state = 'checking';
+      hideInputPanel();
+      burstStars();
+      setTimeout(function () {
+        if (state === 'checking') revealAnswer();
+      }, 2000);
+      return;
+    }
+
+    /* ---------- 错误（达到上限） ---------- */
+    if (attempts >= MAX_TRIES) {
+      state = 'checking';
+      hideInputPanel();
+      showGentleTip('没关系，我们一起看看答案～');
+      setTimeout(function () {
+        hideGentleTip();
+        if (state === 'checking') revealAnswer();
+      }, 2200);
+      return;
+    }
+
+    /* ---------- 错误（可重试） ---------- */
+    state = 'retry';
+    hideInputPanel();
+    showGentleTip('再悄悄数一次吧～');
+
+    setTimeout(function () {
+      hideGentleTip();
+      if (state !== 'retry') return;
+      state = 'input';
+      answerInput.value = '';
+      submitBtn.disabled = true;
+      showInputPanel();
+    }, 2500);
+  }
+
+  /* ==================== 公布标准答案 ==================== */
+  function revealAnswer() {
+    state = 'answer';
+    answerT = 0;
+    showCenter('标准答案', total, '颗芸豆');
+  }
+
+  /* ==================== 开始慢速回放 ==================== */
+  function startReplay() {
+    state = 'replay';
+    replayIdx = 0;
+    haloArrived = false;
+    haloHold = 0;
+
+    // 重置已数标记
+    for (const b of beans) {
+      b.counted = false;
+      b.countedAt = 0;
+      b.number = 0;
+    }
+
+    halo.visible = true;
+    halo.alpha = 0;
+    halo.r = beans.length ? beans[0].r : 34;
+    halo.x = W / 2;
+    halo.y = H + 260;
+
+    hintEl.textContent = '星光来帮忙，一颗一颗慢慢数～';
+    hintEl.classList.add('show');
+  }
+
+  /* ==================== 回放逻辑 ==================== */
+  function updateReplay(dt) {
+    const tgt = beans[replayIdx];
+
+    if (!tgt) {
+      state = 'done';
+      return;
+    }
+
+    // 平滑追踪
+    const k = 1 - Math.pow(0.002, dt);
+    halo.x += (tgt.px - halo.x) * k;
+    halo.y += (tgt.py - halo.y) * k;
+    halo.r += (tgt.r  - halo.r)  * k;
+    halo.alpha = Math.min(1, halo.alpha + dt * 3.2);
+
+    const dist = Math.hypot(tgt.px - halo.x, tgt.py - halo.y);
+
+    if (!haloArrived && dist < Math.max(6, tgt.r * 0.4)) {
+      haloArrived = true;
+      haloHold = 0;
+    }
+
+    if (haloArrived) {
+      haloHold += dt;
+      if (haloHold >= HOLD_TIME) {
+        tgt.counted   = true;
+        tgt.countedAt = 0;
+        tgt.number    = replayIdx + 1;
+        replayIdx++;
+        haloArrived = false;
+        haloHold = 0;
+      }
+    }
+  }
+
+  /* ==================== 主更新 ==================== */
+  function update(dt) {
+    time += dt;
+
+    /* ---------- 芸豆浮动 & 生成动画 ---------- */
+    for (const b of beans) {
+      b.px = b.x + Math.cos(time * 1.0 + b.phase * 1.4) * b.bob * 0.5;
+      b.py = b.y + Math.sin(time * 1.3 + b.phase) * b.bob;
+      b.pang = b.rot + Math.sin(time * 0.8 + b.phase) * 0.06;
+
+      const st = clamp((time - b.spawnDelay) / 0.45, 0, 1);
+      b.scale = st <= 0 ? 0 : easeOutBack(st);
+
+      if (b.counted) b.countedAt += dt;
+    }
+
+    /* ---------- 状态机 ---------- */
+    switch (state) {
+
+      case 'enter':
+        if (time > 1.05) {
+          state = 'count';
+          countDown = COUNT_TIME;
+        }
+        break;
+
+      case 'count':
+        countDown -= dt;
+        if (countDown <= 0) {
+          countDown = 0;
+          updateTimerUI();
+          timerEl.classList.add('hide');
+          state = 'input';
+          showInputPanel();
+        } else {
+          updateTimerUI();
+        }
+        break;
+
+      case 'input':
+      case 'retry':
+      case 'checking':
+        break;
+
+      case 'answer':
+        answerT += dt;
+        if (answerT > ANSWER_SHOW) {
+          hideCenter();
+          startReplay();
+        }
+        break;
+
+      case 'replay':
+        updateReplay(dt);
+        break;
+
+      case 'done':
+        halo.alpha = Math.max(0, halo.alpha - dt * 2.2);
+        if (halo.alpha <= 0) halo.visible = false;
+        break;
+    }
+  }
+
+  /* ==================== 背景绘制 ==================== */
+  function drawBackground() {
+    // 基础暖色渐变
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0,    '#FFFCF6');
+    g.addColorStop(0.45, '#FFF4E6');
+    g.addColorStop(1,    '#FFE7D2');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // 柔和光斑
+    for (const bl of decor.blobs) {
+      const bx = bl.x + Math.sin(time * bl.speed + bl.phase) * 46;
+      const by = bl.y + Math.cos(time * bl.speed * 0.82 + bl.phase) * 34;
+
+      const rg = ctx.createRadialGradient(bx, by, 0, bx, by, bl.r);
+      rg.addColorStop(0, bl.color);
+      rg.addColorStop(1, 'rgba(255,255,255,0)');
+
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.arc(bx, by, bl.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 云朵
+    for (const c of decor.clouds) {
+      const span = W + 400;
+      let cx = ((c.x0 + time * c.speed) % span + span) % span - 200;
+      drawCloud(cx, c.y, c.s, c.alpha);
+    }
+
+    // 底部草地
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    ctx.lineTo(0, H - 52);
+    ctx.quadraticCurveTo(W * 0.22, H - 104, W * 0.46, H - 56);
+    ctx.quadraticCurveTo(W * 0.70, H - 8,  W * 0.86, H - 62);
+    ctx.quadraticCurveTo(W * 0.95, H - 92, W, H - 66);
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(176,228,188,0.42)';
+    ctx.fill();
+
+    // 草地上的小点装饰
+    for (let i = 0; i < 14; i++) {
+      const px = (i / 14) * W + 20;
+      const py = H - 34 - Math.sin(i * 1.7) * 10;
+      ctx.beginPath();
+      ctx.arc(px, py, 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fill();
+    }
+  }
+
+  function drawCloud(x, y, s, alpha) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#FFFFFF';
+
+    const parts = [
+      { x: -46, y: 12, r: 27 },
+      { x: -14, y: -6, r: 35 },
+      { x: 26,  y: 4,  r: 30 },
+      { x: 58,  y: 14, r: 22 }
+    ];
+
+    for (const p of parts) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* ==================== 芸豆路径 ==================== */
+  function beanPath(w, h) {
+    ctx.beginPath();
+    ctx.moveTo(0, -h);
+    ctx.bezierCurveTo( 0.50*w, -h*1.00,  0.92*w, -h*0.80,  0.97*w, -h*0.50);
+    ctx.bezierCurveTo( 0.99*w, -h*0.28,  0.88*w, -h*0.06,  0.62*w,  0);
+    ctx.bezierCurveTo( 0.88*w,  h*0.06,  0.99*w,  h*0.28,  0.97*w,  h*0.50);
+    ctx.bezierCurveTo( 0.92*w,  h*0.80,  0.50*w,  h*1.00,  0,       h);
+    ctx.bezierCurveTo(-0.55*w,  h*1.00, -0.98*w,  h*0.75, -1.00*w,  h*0.32);
+    ctx.bezierCurveTo(-1.02*w,  h*0.05, -1.02*w, -h*0.05, -1.00*w, -h*0.32);
+    ctx.bezierCurveTo(-0.98*w, -h*0.75, -0.55*w, -h*1.00,  0,      -h);
+    ctx.closePath();
+  }
+
+  /* ==================== 绘制单颗芸豆 ==================== */
+  function drawBean(b) {
+    if (b.scale <= 0.012) return;
+
+    const w = b.r, h = b.r * 1.14;
+
+    ctx.save();
+    ctx.translate(b.px, b.py);
+    ctx.rotate(b.pang);
+    ctx.scale(b.scale, b.scale);
+
+    // 地面阴影
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(0, h * 0.62, w * 1.02, h * 0.30, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(190,150,110,0.16)';
+    ctx.filter = 'blur(6px)';
+    ctx.fill();
+    ctx.restore();
+
+    beanPath(w, h);
+
+    // 光晕
+    if (b.counted) {
+      const pulse = 0.55 + 0.45 * Math.sin(b.countedAt * 5.5);
+      ctx.shadowColor = 'rgba(111,216,176,' + (0.5 + 0.4 * pulse).toFixed(3) + ')';
+      ctx.shadowBlur  = 46;
+    } else {
+      ctx.shadowColor = 'rgba(230,175,120,0.55)';
+      ctx.shadowBlur  = 26;
+      ctx.shadowOffsetY = 5;
+    }
+
+    const g = ctx.createLinearGradient(-w * 0.6, -h, w * 0.7, h);
+    g.addColorStop(0,    '#FFF6E6');
+    g.addColorStop(0.36, '#F8E0B8');
+    g.addColorStop(0.72, '#E9C28C');
+    g.addColorStop(1,    '#C99A60');
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    // 内部高光 / 暗部
+    ctx.save();
+    ctx.clip();
+
+    const hg = ctx.createRadialGradient(
+      -w * 0.34, -h * 0.50, 0,
+      -w * 0.34, -h * 0.50, w * 1.35
+    );
+    hg.addColorStop(0,    'rgba(255,255,255,0.92)');
+    hg.addColorStop(0.42, 'rgba(255,255,255,0.18)');
+    hg.addColorStop(1,    'rgba(255,255,255,0)');
+    ctx.fillStyle = hg;
+    ctx.fillRect(-w * 1.8, -h * 1.8, w * 3.6, h * 3.6);
+
+    const dg = ctx.createLinearGradient(0, h * 0.22, 0, h);
+    dg.addColorStop(0, 'rgba(140,90,35,0)');
+    dg.addColorStop(1, 'rgba(130,80,30,0.34)');
+    ctx.fillStyle = dg;
+    ctx.fillRect(-w * 1.8, -h * 1.8, w * 3.6, h * 3.6);
+
+    ctx.restore();
+
+    // 轮廓
+    beanPath(w, h);
+    ctx.strokeStyle = b.counted
+      ? 'rgba(80,200,155,0.9)'
+      : 'rgba(168,122,72,0.5)';
+    ctx.lineWidth = Math.max(1.3, w * 0.04);
+    ctx.stroke();
+
+    // 豆脐
+    ctx.beginPath();
+    ctx.moveTo(w * 0.27, -h * 0.60);
+    ctx.quadraticCurveTo(w * 0.70, 0, w * 0.27, h * 0.60);
+    ctx.strokeStyle = 'rgba(170,120,60,0.28)';
+    ctx.lineWidth = Math.max(1, w * 0.055);
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 小眼睛（可爱表情）
+    const eyeY = -h * 0.10;
+    const eyeX = w * 0.02;
+    const eyeR = w * 0.105;
+
+    ctx.beginPath();
+    ctx.arc(eyeX - w * 0.22, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.arc(eyeX + w * 0.24, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(110,72,42,0.78)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(eyeX - w * 0.22 + eyeR * 0.34, eyeY - eyeR * 0.34, eyeR * 0.34, 0, Math.PI * 2);
+    ctx.arc(eyeX + w * 0.24 + eyeR * 0.34, eyeY - eyeR * 0.34, eyeR * 0.34, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+
+    // 小腮红
+    ctx.beginPath();
+    ctx.arc(-w * 0.52, eyeY + h * 0.20, w * 0.14, 0, Math.PI * 2);
+    ctx.arc( w * 0.56, eyeY + h * 0.20, w * 0.14, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,160,150,0.42)';
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  /* ==================== 星光（下层辉光） ==================== */
+  function drawHaloGlow() {
+    if (!halo.visible || halo.alpha <= 0) return;
+
+    ctx.save();
+    ctx.globalAlpha = halo.alpha;
+
+    const g = ctx.createRadialGradient(
+      halo.x, halo.y, halo.r * 0.5,
+      halo.x, halo.y, halo.r * 3.0
+    );
+    g.addColorStop(0,    'rgba(120,235,200,0.36)');
+    g.addColorStop(0.45, 'rgba(120,235,200,0.13)');
+    g.addColorStop(1,    'rgba(120,235,200,0)');
+
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(halo.x, halo.y, halo.r * 3.0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  /* ==================== 星光（上层光环） ==================== */
+  function drawHaloRing() {
+    if (!halo.visible || halo.alpha <= 0) return;
+
+    const x = halo.x, y = halo.y, r = halo.r;
+    const now = performance.now();
+    const pulse = 0.5 + 0.5 * Math.sin(now / 175);
+
+    ctx.save();
+    ctx.globalAlpha = halo.alpha;
+
+    // 旋转虚线光环
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(now / 900);
+    ctx.beginPath();
+    ctx.setLineDash([r * 0.52, r * 0.38]);
+    ctx.lineWidth = Math.max(2.5, r * 0.10);
+    ctx.strokeStyle = 'rgba(150,255,225,0.95)';
+    ctx.shadowColor = 'rgba(111,216,176,1)';
+    ctx.shadowBlur  = 26;
+    ctx.arc(0, 0, r * 1.62, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // 脉冲实心环
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.30 + pulse * r * 0.07, 0, Math.PI * 2);
+    ctx.lineWidth = Math.max(1.8, r * 0.08);
+    ctx.strokeStyle = 'rgba(200,255,238,' + (0.68 + 0.32 * pulse).toFixed(3) + ')';
+    ctx.shadowColor = 'rgba(111,216,176,1)';
+    ctx.shadowBlur  = 34;
+    ctx.stroke();
+
+    // 十字星光
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(now / 1500);
+    ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+    ctx.lineWidth = Math.max(1.5, r * 0.055);
+    ctx.lineCap = 'round';
+    const L = r * 2.05;
+    ctx.beginPath();
+    ctx.moveTo(-L, 0); ctx.lineTo(L, 0);
+    ctx.moveTo(0, -L); ctx.lineTo(0, L);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  /* ==================== 已数序号徽章 ==================== */
+  function drawBadges() {
+    for (const b of beans) {
+      if (!b.counted) continue;
+
+      const appear = Math.min(b.countedAt / 0.26, 1);
+      if (appear <= 0) continue;
+      const s = 0.35 + 0.65 * (1 - Math.pow(1 - appear, 3));
+
+      const br = b.r * 0.46;
+      let bx = b.px + b.r * 1.02;
+      let by = b.py - b.r * 1.02;
+
+      if (bx + br > W - 10) bx = b.px - b.r * 1.02;
+      if (by - br < 10)     by = b.py + b.r * 1.02;
+
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.scale(s, s);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, br, 0, Math.PI * 2);
+      ctx.fillStyle = '#6FD8B0';
+      ctx.shadowColor = 'rgba(111,216,176,0.95)';
+      ctx.shadowBlur  = 24;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.beginPath();
+      ctx.arc(0, 0, br * 0.80, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '900 ' + (br * 1.2).toFixed(0) +
+                 'px "Yuanti SC","PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(b.number), 0, br * 0.06);
+
+      ctx.restore();
+    }
+  }
+
+  /* ==================== 渲染 ==================== */
+  function render() {
+    drawBackground();
+
+    drawHaloGlow();                    // 辉光在芸豆下方
+
+    for (const b of beans) drawBean(b);
+
+    drawHaloRing();                    // 光环在芸豆上方
+    drawBadges();                      // 序号徽章
+  }
+
+  /* ==================== 主循环 ==================== */
+  let lastTime = performance.now();
+
+  function loop(now) {
+    let dt = (now - lastTime) / 1000;
+    lastTime = now;
+    if (dt > 0.05) dt = 0.05;
+    if (dt < 0)    dt = 0;
+
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  /* ==================== 数字键盘 ==================== */
+  (function buildKeypad() {
+    for (let i = 1; i <= 9; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'key';
+      btn.type = 'button';
+      btn.textContent = i;
+
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (state !== 'input') return;
+        answerInput.value = String(i);
+        submitBtn.disabled = false;
+      });
+
+      keypad.appendChild(btn);
+    }
+  })();
+
+  /* ==================== 输入事件 ==================== */
+  answerInput.addEventListener('input', function (e) {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v === '0') v = '';
+    v = v.slice(0, 1);
+    e.target.value = v;
+    submitBtn.disabled = (v.length === 0);
+  });
+
+  answerInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitAnswer();
+    }
+  });
+
+  submitBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    submitAnswer();
+  });
+
+  inputPanel.addEventListener('pointerdown', function (e) {
+    e.stopPropagation();
+  });
+
+  /* ==================== 重新出题 ==================== */
+  window.addEventListener('keydown', function (e) {
+    if (state === 'done' &&
+        (e.code === 'Space' || e.key === ' ' || e.key === 'Enter')) {
+      e.preventDefault();
+      newRound();
+    }
+  });
+
+  window.addEventListener('pointerdown', function () {
+    if (state === 'done') newRound();
+  });
+
+  /* ==================== 尺寸变化 ==================== */
+  let resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      resize();
+    }, 130);
+  });
+
+  /* ==================== 启动 ==================== */
+  resize();
+  newRound();
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
